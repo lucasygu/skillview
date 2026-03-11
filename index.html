@@ -7,46 +7,59 @@
     <title>SkillView</title>
     <script type="module" src="/src/main.ts" defer></script>
   </head>
-  <body>
-    <div id="app">
-      <aside id="sidebar">
-        <div id="sidebar-header">
-          <h1>SkillView</h1>
+
+  <body class="h-screen text-gray-200">
+    <div id="app" class="flex h-screen">
+
+      <!-- Sidebar -->
+      <aside id="sidebar" class="w-60 min-w-60 flex flex-col bg-glass border-r border-glass-border backdrop-blur-xl">
+
+        <div id="sidebar-header" class="px-4 pt-5 pb-3 border-b border-glass-border">
+          <h1 class="text-[11px] font-semibold tracking-widest uppercase text-dim">SkillView</h1>
         </div>
-        <div id="dashboard-list"></div>
-        <div id="sidebar-footer">
-          <button id="btn-start-all" title="Start all dashboards">Start All</button>
-          <button id="btn-add" title="Register new dashboard">+ Add</button>
+
+        <div id="dashboard-list" class="flex-1 overflow-y-auto p-2"></div>
+
+        <div id="sidebar-footer" class="p-2 border-t border-glass-border flex gap-1">
+          <button id="btn-start-all" class="flex-1 py-1.5 px-2 text-xs font-medium text-muted bg-white/[0.03] border border-glass-border rounded-md hover:bg-white/[0.06] hover:text-gray-200 transition-all" title="Start all dashboards">Start All</button>
+          <button id="btn-add" class="flex-1 py-1.5 px-2 text-xs font-medium text-muted bg-white/[0.03] border border-glass-border rounded-md hover:bg-white/[0.06] hover:text-gray-200 transition-all" title="Register new dashboard">+ Add</button>
         </div>
       </aside>
-      <main id="main-content">
-        <div id="empty-state">
-          <h2>No dashboard selected</h2>
-          <p>Select a dashboard from the sidebar, or click "+ Add" to register one.</p>
+
+      <!-- Main content -->
+      <main id="main-content" class="flex-1 flex flex-col relative">
+        <div id="empty-state" class="flex flex-col items-center justify-center h-full text-dim gap-2">
+          <h2 class="text-base font-medium text-muted">No dashboard selected</h2>
+          <p class="text-sm">Select a dashboard from the sidebar, or click "+ Add" to register one.</p>
         </div>
-        <iframe id="dashboard-frame" style="display:none"></iframe>
+        <iframe id="dashboard-frame" class="w-full h-full border-none bg-white" style="display:none"></iframe>
       </main>
     </div>
 
     <!-- Register dialog -->
-    <dialog id="register-dialog">
+    <dialog id="register-dialog" class="bg-[#1a1a1a] text-gray-200 border border-glass-border rounded-xl p-6 min-w-[400px] shadow-2xl">
       <form id="register-form">
-        <h2>Register Dashboard</h2>
-        <label>
+        <h2 class="text-[15px] font-semibold mb-5">Register Dashboard</h2>
+        <label class="block text-[11px] font-medium tracking-wide uppercase text-dim mb-3">
           Name
-          <input type="text" id="reg-name" placeholder="my-dashboard" required />
+          <input type="text" id="reg-name" placeholder="my-dashboard" required
+            class="block w-full mt-1.5 px-2.5 py-2 bg-black/30 text-gray-200 border border-glass-border rounded-md text-sm outline-none focus:border-dim transition-colors placeholder:text-dim" />
         </label>
-        <label>
+        <label class="block text-[11px] font-medium tracking-wide uppercase text-dim mb-3">
           Directory
-          <input type="text" id="reg-dir" placeholder="/path/to/dashboard" required />
+          <input type="text" id="reg-dir" placeholder="/path/to/dashboard" required
+            class="block w-full mt-1.5 px-2.5 py-2 bg-black/30 text-gray-200 border border-glass-border rounded-md text-sm outline-none focus:border-dim transition-colors placeholder:text-dim" />
         </label>
-        <label>
+        <label class="block text-[11px] font-medium tracking-wide uppercase text-dim mb-3">
           Custom command (optional)
-          <input type="text" id="reg-cmd" placeholder="e.g. distro dashboard --root /path" />
+          <input type="text" id="reg-cmd" placeholder="e.g. distro dashboard --root /path"
+            class="block w-full mt-1.5 px-2.5 py-2 bg-black/30 text-gray-200 border border-glass-border rounded-md text-sm outline-none focus:border-dim transition-colors placeholder:text-dim" />
         </label>
-        <div class="dialog-actions">
-          <button type="button" id="btn-cancel-register">Cancel</button>
-          <button type="submit">Register</button>
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" id="btn-cancel-register"
+            class="px-4 py-2 rounded-md text-sm font-medium text-muted bg-transparent border border-glass-border hover:bg-surface-hover hover:text-gray-200 transition-all cursor-pointer">Cancel</button>
+          <button type="submit"
+            class="px-4 py-2 rounded-md text-sm font-medium text-[#111] bg-gray-200 border border-transparent hover:bg-white transition-all cursor-pointer">Register</button>
         </div>
       </form>
     </dialog>

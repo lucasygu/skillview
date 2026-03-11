@@ -21,49 +21,66 @@ const frameEl = $("#dashboard-frame") as HTMLIFrameElement;
 const emptyEl = $("#empty-state") as HTMLElement;
 const dialog = $("#register-dialog") as HTMLDialogElement;
 
-function createElement(
+function el(
   tag: string,
-  attrs: Record<string, string> = {},
+  className: string,
   text?: string
 ): HTMLElement {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (k === "className") el.className = v;
-    else el.setAttribute(k, v);
-  }
-  if (text) el.textContent = text;
-  return el;
+  const e = document.createElement(tag);
+  e.className = className;
+  if (text) e.textContent = text;
+  return e;
 }
 
 // --- Render ---
 
 function renderDashboard(d: DashboardInfo): HTMLElement {
   const isRunning = d.status === "running";
+  const isActive = d.name === activeDashboard;
 
-  const item = createElement("div", {
-    className: `dashboard-item${d.name === activeDashboard ? " active" : ""}`,
-    "data-name": d.name,
-  });
+  const item = el(
+    "div",
+    `dashboard-item relative flex items-center gap-2.5 py-1.5 px-3 my-px rounded-md cursor-pointer text-[13px] font-[450] transition-all ${
+      isActive
+        ? "active bg-surface-active text-gray-200"
+        : "text-muted hover:bg-surface-hover hover:text-gray-200"
+    }`
+  );
+  item.dataset.name = d.name;
 
-  const dot = createElement("span", {
-    className: `status-dot ${d.status}`,
-  });
+  const dot = el(
+    "span",
+    `status-dot shrink-0 w-1.5 h-1.5 rounded-full ${
+      isRunning
+        ? "running bg-status-green shadow-[0_0_5px_var(--color-status-glow)]"
+        : "stopped bg-dim opacity-50"
+    }`
+  );
 
-  const name = createElement("span", { className: "name" }, d.name);
+  const name = el(
+    "span",
+    "flex-1 overflow-hidden text-ellipsis whitespace-nowrap tracking-tight",
+    d.name
+  );
 
-  const actions = createElement("span", { className: "actions" });
+  const actions = el(
+    "span",
+    "flex gap-0.5 opacity-0 transition-opacity group-item"
+  );
 
-  const btnToggle = createElement(
+  const btnToggle = el(
     "button",
-    { className: "btn-toggle", title: isRunning ? "Stop" : "Start" },
+    "bg-transparent border-none text-dim cursor-pointer text-[13px] px-1.5 py-0.5 rounded leading-none hover:text-gray-200 hover:bg-white/10 transition-all",
     isRunning ? "\u25A0" : "\u25B6"
   );
+  btnToggle.title = isRunning ? "Stop" : "Start";
 
-  const btnRemove = createElement(
+  const btnRemove = el(
     "button",
-    { className: "btn-remove", title: "Remove" },
+    "bg-transparent border-none text-dim cursor-pointer text-[13px] px-1.5 py-0.5 rounded leading-none hover:text-gray-200 hover:bg-white/10 transition-all",
     "\u2715"
   );
+  btnRemove.title = "Remove";
 
   actions.appendChild(btnToggle);
   actions.appendChild(btnRemove);
@@ -71,10 +88,13 @@ function renderDashboard(d: DashboardInfo): HTMLElement {
   item.appendChild(name);
   item.appendChild(actions);
 
-  // Click to select and view
+  // Show actions on hover
+  item.addEventListener("mouseenter", () => actions.classList.replace("opacity-0", "opacity-100"));
+  item.addEventListener("mouseleave", () => actions.classList.replace("opacity-100", "opacity-0"));
+
+  // Click to select
   item.addEventListener("click", (e) => {
-    const target = e.target as HTMLElement;
-    if (target.closest(".actions")) return;
+    if ((e.target as HTMLElement).closest("button")) return;
     selectDashboard(d);
   });
 
@@ -117,14 +137,12 @@ function showFrame(url: string) {
 async function selectDashboard(d: DashboardInfo) {
   activeDashboard = d.name;
 
-  // Auto-start if stopped
   if (d.status !== "running") {
     const started: DashboardInfo = await invoke("start_dashboard", {
       name: d.name,
     });
     d = started;
     await refreshList();
-    // Give the server a moment to bind
     await new Promise((r) => setTimeout(r, 1000));
   }
 
@@ -132,12 +150,13 @@ async function selectDashboard(d: DashboardInfo) {
     showFrame(`http://localhost:${d.port}`);
   }
 
-  // Update active state in sidebar
+  // Update active state
   document.querySelectorAll(".dashboard-item").forEach((el) => {
-    el.classList.toggle(
-      "active",
-      (el as HTMLElement).dataset.name === d.name
-    );
+    const isActive = (el as HTMLElement).dataset.name === d.name;
+    el.classList.toggle("active", isActive);
+    el.classList.toggle("bg-surface-active", isActive);
+    el.classList.toggle("text-gray-200", isActive);
+    el.classList.toggle("text-muted", !isActive);
   });
 }
 
@@ -149,7 +168,6 @@ async function refreshList() {
     listEl.appendChild(renderDashboard(d));
   }
 
-  // If active dashboard is gone, show empty
   if (
     activeDashboard &&
     !dashboards.find((d) => d.name === activeDashboard)
@@ -162,27 +180,22 @@ async function refreshList() {
 // --- Events ---
 
 window.addEventListener("DOMContentLoaded", async () => {
-  // Start all dashboards on launch
   await invoke("start_all_dashboards");
   await refreshList();
 
-  // Start All button
   $("#btn-start-all")!.addEventListener("click", async () => {
     await invoke("start_all_dashboards");
     await refreshList();
   });
 
-  // Add button
   $("#btn-add")!.addEventListener("click", () => {
     dialog.showModal();
   });
 
-  // Cancel register
   $("#btn-cancel-register")!.addEventListener("click", () => {
     dialog.close();
   });
 
-  // Register form submit
   $("#register-form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = ($("#reg-name") as HTMLInputElement).value.trim();
