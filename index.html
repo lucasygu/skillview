@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkillView</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+  <body>
+    <div id="app">
+      <aside id="sidebar">
+        <div id="sidebar-header">
+          <h1>SkillView</h1>
+        </div>
+        <div id="dashboard-list"></div>
+        <div id="sidebar-footer">
+          <button id="btn-start-all" title="Start all dashboards">Start All</button>
+          <button id="btn-add" title="Register new dashboard">+ Add</button>
+        </div>
+      </aside>
+      <main id="main-content">
+        <div id="empty-state">
+          <h2>No dashboard selected</h2>
+          <p>Select a dashboard from the sidebar, or click "+ Add" to register one.</p>
+        </div>
+        <iframe id="dashboard-frame" style="display:none"></iframe>
+      </main>
+    </div>
+
+    <!-- Register dialog -->
+    <dialog id="register-dialog">
+      <form id="register-form">
+        <h2>Register Dashboard</h2>
+        <label>
+          Name
+          <input type="text" id="reg-name" placeholder="my-dashboard" required />
+        </label>
+        <label>
+          Directory
+          <input type="text" id="reg-dir" placeholder="/path/to/dashboard" required />
+        </label>
+        <label>
+          Custom command (optional)
+          <input type="text" id="reg-cmd" placeholder="e.g. distro dashboard --root /path" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="btn-cancel-register">Cancel</button>
+          <button type="submit">Register</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
