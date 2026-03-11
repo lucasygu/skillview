@@ -7,8 +7,28 @@ use commands::*;
 use std::sync::Mutex;
 use tauri::Manager;
 
+/// macOS GUI apps don't inherit the user's shell PATH.
+/// Run login shell to capture the real PATH so child processes
+/// can find tools like `bun`, `distro`, `node`, etc.
+fn fix_path_env() {
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
+    if let Ok(output) = std::process::Command::new(&shell)
+        .args(["-l", "-c", "echo $PATH"])
+        .output()
+    {
+        if let Ok(path) = String::from_utf8(output.stdout) {
+            let path = path.trim();
+            if !path.is_empty() {
+                std::env::set_var("PATH", path);
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    fix_path_env();
+
     // Migrate old skill registry on first run
     registry::Registry::migrate_from_skill();
 

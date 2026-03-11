@@ -6,6 +6,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardEntry {
     pub name: String,
+    #[serde(alias = "dashboardDir")]
     pub dashboard_dir: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command: Option<Vec<String>>,
@@ -13,8 +14,9 @@ pub struct DashboardEntry {
     pub port: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pid: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", alias = "startedAt")]
     pub started_at: Option<String>,
+    #[serde(alias = "createdAt")]
     pub created_at: String,
 }
 
@@ -83,32 +85,44 @@ impl Registry {
 
     /// Migrate from old skill registry if it exists and ours is empty
     pub fn migrate_from_skill() {
-        let new_path = Self::path();
-        if new_path.exists() {
+        // Only migrate if our registry is empty or missing
+        let current = Self::load();
+        if !current.dashboards.is_empty() {
             return;
         }
 
         let home = std::env::var("HOME").unwrap_or_default();
-        let old_path = PathBuf::from(&home)
-            .join(".claude")
-            .join("skills")
-            .join("dashboard")
-            .join("data")
-            .join("registry.json");
+        let base = PathBuf::from(&home).join(".claude").join("skills");
 
-        if !old_path.exists() {
-            return;
-        }
+        // Check both old and new skill directory names
+        let candidates = [
+            base.join("dashboard").join("data").join("registry.json"),
+            base.join("skillview").join("data").join("registry.json"),
+        ];
 
-        if let Ok(data) = fs::read_to_string(&old_path) {
-            if let Ok(mut reg) = serde_json::from_str::<Registry>(&data) {
-                for entry in reg.dashboards.values_mut() {
-                    entry.pid = None;
-                    entry.started_at = None;
-                    entry.port = None;
+        for old_path in &candidates {
+            if !old_path.exists() {
+                continue;
+            }
+
+            if let Ok(data) = fs::read_to_string(old_path) {
+                if let Ok(mut reg) = serde_json::from_str::<Registry>(&data) {
+                    if reg.dashboards.is_empty() {
+                        continue;
+                    }
+                    for entry in reg.dashboards.values_mut() {
+                        entry.pid = None;
+                        entry.started_at = None;
+                        entry.port = None;
+                    }
+                    reg.save();
+                    log::info!(
+                        "migrated {} dashboards from {}",
+                        reg.dashboards.len(),
+                        old_path.display()
+                    );
+                    return;
                 }
-                reg.save();
-                log::info!("migrated {} dashboards from old skill registry", reg.dashboards.len());
             }
         }
     }
