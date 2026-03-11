@@ -1,6 +1,11 @@
+use crate::error::AppError;
 use crate::process;
 use crate::registry::{DashboardEntry, Registry};
 use serde::Serialize;
+use std::sync::Mutex;
+use tauri::State;
+
+pub type AppState = Mutex<Registry>;
 
 #[derive(Debug, Serialize)]
 pub struct DashboardInfo {
@@ -29,18 +34,25 @@ impl From<&DashboardEntry> for DashboardInfo {
     }
 }
 
-#[tauri::command]
-pub fn list_dashboards() -> Vec<DashboardInfo> {
-    let reg = Registry::load();
-    reg.list().iter().map(|e| DashboardInfo::from(*e)).collect()
+fn lock_registry(state: &AppState) -> Result<std::sync::MutexGuard<'_, Registry>, AppError> {
+    state.lock().map_err(|_| AppError::LockPoisoned)
 }
 
 #[tauri::command]
-pub fn start_dashboard(name: String) -> Result<DashboardInfo, String> {
-    let mut reg = Registry::load();
+pub async fn list_dashboards(state: State<'_, AppState>) -> Result<Vec<DashboardInfo>, AppError> {
+    let reg = lock_registry(&state)?;
+    Ok(reg.list().iter().map(|e| DashboardInfo::from(*e)).collect())
+}
+
+#[tauri::command]
+pub async fn start_dashboard(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<DashboardInfo, AppError> {
+    let mut reg = lock_registry(&state)?;
     let entry = reg
         .get(&name)
-        .ok_or_else(|| format!("dashboard '{}' not found", name))?
+        .ok_or_else(|| AppError::NotFound(name.clone()))?
         .clone();
 
     let (pid, port) = process::start(&entry)?;
@@ -57,11 +69,14 @@ pub fn start_dashboard(name: String) -> Result<DashboardInfo, String> {
 }
 
 #[tauri::command]
-pub fn stop_dashboard(name: String) -> Result<DashboardInfo, String> {
-    let mut reg = Registry::load();
+pub async fn stop_dashboard(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<DashboardInfo, AppError> {
+    let mut reg = lock_registry(&state)?;
     let entry = reg
         .get(&name)
-        .ok_or_else(|| format!("dashboard '{}' not found", name))?
+        .ok_or_else(|| AppError::NotFound(name.clone()))?
         .clone();
 
     process::stop(&entry);
@@ -78,8 +93,10 @@ pub fn stop_dashboard(name: String) -> Result<DashboardInfo, String> {
 }
 
 #[tauri::command]
-pub fn start_all_dashboards() -> Vec<DashboardInfo> {
-    let mut reg = Registry::load();
+pub async fn start_all_dashboards(
+    state: State<'_, AppState>,
+) -> Result<Vec<DashboardInfo>, AppError> {
+    let mut reg = lock_registry(&state)?;
     let names: Vec<String> = reg.dashboards.keys().cloned().collect();
     let mut results = Vec::new();
 
@@ -101,21 +118,23 @@ pub fn start_all_dashboards() -> Vec<DashboardInfo> {
                 reg.set(updated.clone());
                 results.push(DashboardInfo::from(&updated));
             }
-            Err(_) => {
+            Err(e) => {
+                log::error!("failed to start '{}': {}", name, e);
                 results.push(DashboardInfo::from(&entry));
             }
         }
     }
 
-    results
+    Ok(results)
 }
 
 #[tauri::command]
-pub fn register_dashboard(
+pub async fn register_dashboard(
     name: String,
     dir: String,
     command: Option<Vec<String>>,
-) -> Result<DashboardInfo, String> {
+    state: State<'_, AppState>,
+) -> Result<DashboardInfo, AppError> {
     let resolved = if dir.starts_with('/') {
         dir
     } else {
@@ -129,7 +148,7 @@ pub fn register_dashboard(
     };
 
     if !std::path::Path::new(&resolved).exists() {
-        return Err(format!("directory does not exist: {}", resolved));
+        return Err(AppError::DirNotFound(resolved));
     }
 
     let entry = DashboardEntry {
@@ -142,15 +161,18 @@ pub fn register_dashboard(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    let mut reg = Registry::load();
+    let mut reg = lock_registry(&state)?;
     reg.set(entry.clone());
 
     Ok(DashboardInfo::from(&entry))
 }
 
 #[tauri::command]
-pub fn remove_dashboard(name: String) -> Result<bool, String> {
-    let mut reg = Registry::load();
+pub async fn remove_dashboard(
+    name: String,
+    state: State<'_, AppState>,
+) -> Result<bool, AppError> {
+    let mut reg = lock_registry(&state)?;
     if let Some(entry) = reg.get(&name) {
         process::stop(entry);
     }

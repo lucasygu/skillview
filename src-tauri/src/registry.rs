@@ -24,7 +24,7 @@ pub struct Registry {
 }
 
 impl Registry {
-    fn path() -> PathBuf {
+    pub fn path() -> PathBuf {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
         PathBuf::from(home).join(".skillview").join("registry.json")
     }
@@ -45,10 +45,19 @@ impl Registry {
     pub fn save(&self) {
         let path = Self::path();
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).ok();
+            if let Err(e) = fs::create_dir_all(parent) {
+                log::error!("failed to create registry dir: {}", e);
+                return;
+            }
         }
-        let data = serde_json::to_string_pretty(self).unwrap_or_default();
-        fs::write(&path, data).ok();
+        match serde_json::to_string_pretty(self) {
+            Ok(data) => {
+                if let Err(e) = fs::write(&path, data) {
+                    log::error!("failed to write registry: {}", e);
+                }
+            }
+            Err(e) => log::error!("failed to serialize registry: {}", e),
+        }
     }
 
     pub fn get(&self, name: &str) -> Option<&DashboardEntry> {
@@ -92,15 +101,14 @@ impl Registry {
         }
 
         if let Ok(data) = fs::read_to_string(&old_path) {
-            // Old format has same structure, just missing port field
             if let Ok(mut reg) = serde_json::from_str::<Registry>(&data) {
-                // Clear PIDs since they're stale
                 for entry in reg.dashboards.values_mut() {
                     entry.pid = None;
                     entry.started_at = None;
                     entry.port = None;
                 }
                 reg.save();
+                log::info!("migrated {} dashboards from old skill registry", reg.dashboards.len());
             }
         }
     }
