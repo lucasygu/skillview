@@ -32,8 +32,20 @@ pub fn run() {
     // Migrate old skill registry on first run
     registry::Registry::migrate_from_skill();
 
-    // Load registry once into managed state
-    let state = Mutex::new(registry::Registry::load());
+    // Load registry and kill any stale processes from a previous crash
+    let state = {
+        let mut reg = registry::Registry::load();
+        for entry in reg.dashboards.values() {
+            process::stop(entry);
+        }
+        for entry in reg.dashboards.values_mut() {
+            entry.pid = None;
+            entry.port = None;
+            entry.started_at = None;
+        }
+        reg.save();
+        Mutex::new(reg)
+    };
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
